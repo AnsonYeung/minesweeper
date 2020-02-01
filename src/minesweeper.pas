@@ -1,6 +1,6 @@
 {$mode objfpc}
 Program TicTacToe;
-Uses SysUtils, Windows, Console, Board, Menu;
+Uses SysUtils, Console, Board, Menu;
 Type
 EKey = Procedure (Const event: KEY_EVENT_RECORD);
 EMouse = Procedure (Const event: MOUSE_EVENT_RECORD);

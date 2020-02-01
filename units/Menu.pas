@@ -1,7 +1,7 @@
 {$mode objfpc}
 Unit Menu;
 Interface
-Uses Windows, Console;
+Uses Console;
 Const
 WinWidth: Integer = 150;
 Type

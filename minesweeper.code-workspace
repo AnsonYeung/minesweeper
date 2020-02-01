@@ -16,7 +16,7 @@
 	},
 	"settings": {
 		"code-runner.executorMap": {
-			"pascal": "$driveLetter && cd $workspaceRoot && ( if exist tmp rmdir /s /q tmp ) && mkdir tmp && cd $dir && fpc -dDEBUG -FU..\\tmp -Fu..\\units $fileName && move /y $fileNameWithoutExt.exe \"$workspaceRoot\\bin\" && cd $workspaceRoot\\bin && rmdir /s /q ..\\tmp && rm -f .running && start $fileNameWithoutExt",
+			"pascal": "$driveLetter && cd $workspaceRoot && ( if exist tmp rmdir /s /q tmp ) && mkdir tmp && cd $dir && fpc -dDEBUG -dFALLBACK -FU..\\tmp -Fu..\\units $fileName && move /y $fileNameWithoutExt.exe \"$workspaceRoot\\bin\" && cd $workspaceRoot\\bin && rmdir /s /q ..\\tmp && rm -f .running && start $fileNameWithoutExt",
 		},
 		"code-runner.ignoreSelection": true,
 		"code-runner.saveAllFilesBeforeRun": true,
