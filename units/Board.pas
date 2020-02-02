@@ -6,11 +6,12 @@ BoxHeight: Integer = 3;
 Type
 BoxState = Record
 	opened: Boolean;
+	flagged: Boolean;
 	value: -1..8;
 End;
 TBoard = Array Of Array Of BoxState;
 
-Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer): TBoard;
+Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer; nx, ny: Integer): TBoard;
 Procedure DrawBoard(Const gameBoard: TBoard);
 Function MouseInBox(mousePosX, mousePosY, x, y: Integer): Boolean;
 Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean);
@@ -19,7 +20,7 @@ Procedure DrawBoxContent(x, y: Integer; state: BoxState);
 Implementation
 Uses Console;
 
-Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer): TBoard;
+Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer; nx, ny: Integer): TBoard;
 Var
 gameBoard: TBoard;
 i, j, k: Integer;
@@ -40,10 +41,13 @@ Begin
 		Begin
 			gameBoard[i][j].value := 0;
 			gameBoard[i][j].opened := false;
+			gameBoard[i][j].flagged := false;
 		End;
 	End;
 	For i := 0 To randomLen - 1 Do 
 		randomizer[i] := i;
+	randomizer[ny * Width + nx] := randomizer[randomLen - 1];
+	Dec(randomLen);
 	For i := 1 To numBombs Do
 	Begin
 		tmp := random(randomLen);
@@ -73,13 +77,15 @@ i: Integer;
 Begin
 	TextColor(Black);
 	If hover Then
-		If Not state.opened Then
+		If Not state.opened And Not state.flagged Then
 			TextBackground(Green)
 		Else
 			TextBackground(Red)
 	Else
 		If Not state.opened Then
 			TextBackground(Gray)
+		Else If state.value = -1 Then
+			TextBackground(LightRed)
 		Else
 			TextBackground(White);
 	For i := 0 To BoxHeight - 1 Do
@@ -90,10 +96,17 @@ Procedure DrawBoxContent(x, y: Integer; state: BoxState);
 Begin
 	GoToXY(x * BoxWidth + BoxWidth div 2, y * BoxHeight + BoxHeight div 2);
 	// TODO: add different colors
-	If state.value = -1 Then
-		Write('B')
-	Else If state.value <> 0 Then
-		Write(state.value);
+	If state.flagged Then
+		Write('F')
+	Else If state.opened Then
+	Begin
+		If state.value = -1 Then
+			Write('B')
+		Else If state.value <> 0 Then
+			Write(state.value);
+	End
+	Else
+		Write(' ');
 End;
 
 Procedure DrawBoard(Const gameBoard: TBoard);
