@@ -440,13 +440,17 @@ Begin
 End;
 
 Procedure GameChangeSelection(Const X: Integer; Const Y: Integer);
+Var tx, ty: Integer;
 Begin
 	If (boxSelected.X <> X) Or (boxSelected.Y <> Y) Then
 	Begin
-		DrawBoxSelected(False, True);
+		tx := boxSelected.X;
+		ty := boxSelected.Y;
+		DrawBoxSelected(False, False);
 		boxSelected.X := X;
 		boxSelected.Y := Y;
-		DrawBoxSelected(True, True);
+		DrawBoxSelected(True, False);
+		PrintPartialBoard(Min(tx, X), Min(ty, Y), Abs(tx - X) + 1, Abs(ty - Y) + 1);
 	End;
 End;
 

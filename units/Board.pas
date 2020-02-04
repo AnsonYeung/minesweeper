@@ -16,6 +16,7 @@ Procedure DrawBoard(Const gameBoard: TBoard);
 Function MouseInBox(mousePosX, mousePosY, x, y: Integer): Boolean;
 Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean; output: Boolean);
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
+Procedure PrintPartialBoard(x, y, width, height: Integer);
 Procedure PrintBoard();
 
 Implementation
@@ -117,7 +118,7 @@ Begin
 			boxBuffer[j + i * BoxWidth] := fastBuffer[x * BoxWidth + j + (y * BoxHeight + i) * W * BoxWidth];
 		End;
 	If output Then
-		OutputFastBuffer(@boxBuffer[0], x * BoxWidth, y * BoxHeight, BoxWidth, BoxHeight);
+		OutputFastBuffer(@boxBuffer[0], BoxWidth, BoxHeight, x * BoxWidth, y * BoxHeight, BoxWidth, BoxHeight);
 End;
 
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
@@ -155,9 +156,14 @@ Begin
 		(mousePosY <= (y + 1) * BoxHeight - 1);
 End;
 
+Procedure PrintPartialBoard(x, y, width, height: Integer);
+Begin
+	OutputFastBuffer(@fastBuffer[0], W * BoxWidth, H * BoxHeight, x * BoxWidth, y * BoxHeight, width * BoxWidth, height * BoxHeight);
+End;
+
 Procedure PrintBoard();
 Begin
-	OutputFastBuffer(@fastBuffer[0], 0, 0, W * BoxWidth, H * BoxHeight);
+	OutputFastBuffer(@fastBuffer[0], W * BoxWidth, H * BoxHeight, 0, 0, W * BoxWidth, H * BoxHeight);
 End;
 
 End.

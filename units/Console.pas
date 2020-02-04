@@ -145,7 +145,7 @@ Function GetActiveBuffer(): Handle;
 Procedure WriteDupAttr(Const X: Integer; Const Y: Integer; Const n: Integer);
 Procedure ReadEnter();
 Procedure ReadInt(Var i: Integer);
-Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const X, Y, Width, Height: Integer);
+Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const W, H, X, Y, Width, Height: Integer);
 Procedure DisableClose();
 // original internal function
 // public for this program
@@ -462,7 +462,7 @@ Begin
 	i := res;
 End;
 
-Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const X, Y, Width, Height: Integer);
+Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const W, H, X, Y, Width, Height: Integer);
 Var
 bufSize: Coord;
 bufCoord: Coord;
@@ -470,10 +470,10 @@ writeRegion: SMALL_RECT;
 CurrentInfo: CONSOLE_SCREEN_BUFFER_INFO;
 Begin
 	GetConsoleScreenBufferInfo(hStdout, @CurrentInfo);
-	bufSize.X := Width;
-	bufSize.Y := Height;
-	bufCoord.X := 0;
-	bufCoord.Y := 0;
+	bufSize.X := W;
+	bufSize.Y := H;
+	bufCoord.X := X;
+	bufCoord.Y := Y;
 	writeRegion.Top := Y;
 	writeRegion.Left := X;
 	writeRegion.Right := X + Width - 1;
