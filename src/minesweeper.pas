@@ -382,7 +382,7 @@ Procedure EnterGame(difficulty: Integer); Begin
 End;
 
 Procedure GameChangeSelection(Const X: Integer; Const Y: Integer); Forward;
-Procedure GameSelection(flagging: Boolean; chording: Boolean); Forward;
+Procedure GameSelection(flagging: Boolean; chording: Boolean; print: Boolean); Forward;
 
 Procedure GameEvent(Const event: KEY_EVENT_RECORD);
 Begin
@@ -395,13 +395,13 @@ Begin
 	End
 	Else
 	Case event.wVirtualKeyCode Of
-		$46: GameSelection(True, False);
+		$46: GameSelection(True, False, True);
 		$53: Begin
 			SaveGame();
 			Halt(0);
 		End;
 		$51: Halt(0);
-		VK_RETURN: GameSelection(False, False);
+		VK_RETURN: GameSelection(False, False, True);
 	End;
 End;
 
@@ -421,13 +421,13 @@ Begin
 	If (hoverX <> -1) And (hoverY <> -1) Then
 	Case event.dwEventFlags Of
 		0: If (event.dwButtonState And $04) <> $0 Then
-			GameSelection(False, True)
+			GameSelection(False, True, True)
 		Else If (event.dwButtonState And $03) = $03 Then
-			GameSelection(False, True)
+			GameSelection(False, True, True)
 		Else If (event.dwButtonState And $01) = $01 Then
-			GameSelection(False, False)
+			GameSelection(False, False, True)
 		Else If (event.dwButtonState And $02) <> $0 Then
-			GameSelection(True, False);
+			GameSelection(True, False, True);
 		MOUSE_MOVED:
 		If (boxSelected.X <> hoverX) Or (boxSelected.Y <> hoverY) Then
 			GameChangeSelection(hoverX, hoverY);
@@ -454,7 +454,7 @@ Begin
 	End;
 End;
 
-Procedure GameSelection(flagging: Boolean; chording: Boolean);
+Procedure GameSelection(flagging: Boolean; chording: Boolean; print: Boolean);
 Var
 st: Array Of Coord;
 efLen: SizeInt;
@@ -487,7 +487,7 @@ Begin
 							Begin
 								boxSelected.X := newEl.X + i;
 								boxSelected.Y := newEl.Y + j;
-								GameSelection(False, False);
+								GameSelection(False, False, False);
 								DrawBoxSelected(False, False);
 								If Bombs + boxOpened = Width * Height Then
 								Begin
@@ -563,7 +563,8 @@ Begin
 		If boxOpened + Bombs = Width * Height Then
 			EnterGameEnd(True);
 	End;
-	PrintBoard();
+	If print Then
+		PrintBoard();
 End;
 
 Procedure GameEndEvent(Const event: KEY_EVENT_RECORD); Forward;
