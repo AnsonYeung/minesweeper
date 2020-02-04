@@ -4,5 +4,6 @@ Implementation
 Uses SysUtils;
 Initialization
 Finalization
-	DeleteFile('.running');
+	If FileExists('.running') Then
+		DeleteFile('.running');
 End.

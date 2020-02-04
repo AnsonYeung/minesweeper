@@ -13,6 +13,8 @@ TChoice = Array Of String;
 Procedure EnterMenu(Var onKey: EKey; Var onMouse: EMouse; ponSelect: MenuCb; Var pchoices: TChoice);
 
 Implementation
+Const
+yOffset: Integer = 20;
 Var
 choices: Array Of String;
 choiceCnt: Integer;
@@ -63,7 +65,7 @@ End;
 
 Procedure WriteMenuButton(Const i: Integer; Const hover: Boolean);
 Begin
-	WriteButtonCenter(choices[i], 20 + i * 5, hover);
+	WriteButtonCenter(choices[i], yOffset + i * 5, hover);
 End;
 
 Procedure MenuEvent(Const event: KEY_EVENT_RECORD);
@@ -94,7 +96,7 @@ Begin
 	Begin
 		button := -1;
 		For i := 0 To choiceCnt - 1 Do
-			If CoordInCenteredButton(event.dwMousePosition, Length(choices[i]), 20 + i * 5) Then
+			If CoordInCenteredButton(event.dwMousePosition, Length(choices[i]), yOffset + i * 5) Then
 				button := i;
 		Case event.dwEventFlags Of
 			0: If button <> -1 Then onSelect(choiceSelected);

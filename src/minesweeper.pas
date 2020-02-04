@@ -1,6 +1,9 @@
 {$mode objfpc}
 Program TicTacToe;
 Uses StopRunning, SysUtils, Console, Board, Menu;
+Const
+oneSec: Real = 0.00001157407;
+
 Type
 EKey = Procedure (Const event: KEY_EVENT_RECORD);
 EMouse = Procedure (Const event: MOUSE_EVENT_RECORD);
@@ -9,7 +12,7 @@ EFocus = Procedure (Const event: FOCUS_EVENT_RECORD);
 EMenu = Procedure (Const event: MENU_EVENT_RECORD);
 
 Var
-irInBuf: Array[0..127] Of INPUT_RECORD;
+irInBuf: Array[0..0] Of INPUT_RECORD;
 cNumRead: DWord;
 i: Integer;
 onKey: EKey;
@@ -18,14 +21,17 @@ onWinBufferSize: EWinBufferSize;
 onFocus: EFocus;
 onMenu: EMenu;
 
-menuOptions, playOptions: Array Of String;
+menuOptions, continueOptions, playOptions: Array Of String;
 Width, Height, Bombs: Integer;
-easyBest, mediumBest, hardBest: Integer;
+easyBest, mediumBest, hardBest: Real;
 
+startTime: TDateTime;
+disableRecord: Boolean;
 gameDiff: Integer;
 gameBoard: TBoard;
 boxSelected: Coord;
 boxOpened: Integer;
+loadFromSave: Boolean;
 
 Procedure EnterConsole();
 Begin
@@ -91,14 +97,15 @@ Begin
 	Close(textFile);
 End;
 
+Procedure SaveRecord(); Forward;
+Procedure LoadRecord(); Forward;
 Procedure ResetGame(); Forward;
 
 Procedure InitProgram();
-Var
-c1, c2: Char;
-textFile : Text;
 Begin
 	Randomize();
+	SetConsoleTitle('Minesweeper');	
+	DisableClose();
 	If FileExists('.running') Then
 	Begin
 		EnterConsole();
@@ -113,6 +120,10 @@ Begin
 	menuOptions[0] := 'Play';
 	menuOptions[1] := 'Statistics';
 	menuOptions[2] := 'Exit';
+	SetLength(continueOptions, 3);
+	continueOptions[0] := 'Continue Last Save';
+	continueOptions[1] := 'Start new game';
+	continueOptions[2] := 'Return to main menu';
 	SetLength(playOptions, 5);
 	playOptions[0] := 'Easy';
 	playOptions[1] := 'Medium';
@@ -121,47 +132,34 @@ Begin
 	playOptions[4] := 'Back to main menu';
 	boxSelected.X := 0;
 	boxSelected.Y := 0;
-	If Not FileExists('.minesweeper') Then
+	If Not FileExists('records') Then
 		ResetGame()
 	Else
-	Begin
-		Assign(textFile, '.minesweeper');
-		Reset(textFile);
-		Read(textFile, c1, c2);
-		easyBest := Ord(c1) * 256 + Ord(c2);
-		Read(textFile, c1, c2);
-		mediumBest := Ord(c1) * 256 + Ord(c2);
-		ReadLn(textFile, c1, c2);
-		hardBest := Ord(c1) * 256 + Ord(c2);
-		Close(textFile);
-	End;
+		LoadRecord();
 End;
 
 Procedure ResetGame();
-Var
-textFile : Text;
 Begin
 	easyBest := 0;
 	mediumBest := 0;
 	hardBest := 0;
-	Assign(textFile, '.minesweeper');
-	Rewrite(textFile);
-	WriteLn(textFile, StrDup(Chr(0), 6));
-	Close(textFile);
+	SaveRecord();
 End;
 
 Procedure EnterMainMenu(); Forward;
+Procedure EnterContinue(); Forward;
 Procedure EnterPlay(); Forward;
 Procedure EnterStat(); Forward;
 Procedure EnterCustom(); Forward;
 Procedure EnterGame(difficulty: Integer); Forward;
 Procedure EnterGameEnd(win: Boolean); Forward;
-// Procedure EnterGameEnd(Const player: Integer); Forward;
+Procedure SaveGame(); Forward;
+Procedure LoadGame(); Forward;
 
 Procedure MenuSelection(Const result: Integer);
 Begin
 	Case result Of
-		0: EnterPlay();
+		0: EnterContinue();
 		1: EnterStat();
 		2: Halt(0);
 	End;
@@ -173,6 +171,28 @@ Begin
 	WriteFileCenter('scenes\menu_title.txt');
 	NoopAll();
 	EnterMenu(onKey, onMouse, @MenuSelection, menuOptions);
+End;
+
+Procedure ContinueSelection(Const result: Integer);
+Begin
+	Case result Of
+		0: LoadGame();
+		1: EnterPlay();
+		2: EnterMainMenu();
+	End;
+End;
+
+Procedure EnterContinue();
+Begin
+	If FileExists('save') Then
+	Begin
+		EnterConsole();
+		WriteFileCenter('scenes\menu_title.txt');
+		NoopAll();
+		EnterMenu(onKey, onMouse, @ContinueSelection, continueOptions);
+	End
+	Else
+		EnterPlay();
 End;
 
 Procedure PlaySelection(Const result: Integer);
@@ -201,15 +221,17 @@ Procedure EnterStat(); Begin
 	If easyBest = 0 Then
 		WriteLn('Easy: no record')
 	Else
-		WriteLn('Easy: ', easyBest, 's');
+		WriteLn('Easy: ', easyBest:5:2, 's');
 	If mediumBest = 0 Then
 		WriteLn('Medium: no record')
 	Else
-		WriteLn('Medium: ', mediumBest, 's');
+		WriteLn('Medium: ', mediumBest:5:2, 's');
 	If hardBest = 0 Then
 		WriteLn('Hard: no record')
 	Else
-		WriteLn('Hard: ', hardBest, 's');
+		WriteLn('Hard: ', hardBest:5:2, 's');
+	WriteLn();
+	WriteLn('Press enter to return to main menu.');
 	ReadEnter();
 	EnterMainMenu();
 End;
@@ -227,11 +249,37 @@ Procedure EnterCustom(); Begin
 	ReadInt(Bombs);
 	WriteLn();
 	CursorOff();
-	// TODO: check difficulty valid
-	EnterGame(3);
+	If (Width = 8) And (Height = 8) And (Bombs = 10) Then
+	Begin
+		WriteLn('Starting the difficulty easy...');
+		Sleep(3000);
+		EnterGame(0);
+	End
+	Else If (Width = 16) And (Height = 16) And (Bombs = 40) Then
+	Begin
+		WriteLn('Starting the difficulty medium...');
+		Sleep(3000);
+		EnterGame(1);
+	End
+	Else If (Width = 30) And (Height = 16) And (Bombs = 99) Then
+	Begin
+		WriteLn('Starting the difficulty hard...');
+		Sleep(3000);
+		EnterGame(2);
+	End
+	Else If Bombs < Width * Height Then
+	Begin
+		EnterGame(3);
+	End
+	Else
+	Begin
+		WriteLn('Invalid board configuation, returning to main menu in 3 seconds');
+		Sleep(3000);
+		EnterMainMenu();
+	End;
 End;
 
-Procedure DrawBoxSelected(Const hover: Boolean); Forward;
+Procedure DrawBoxSelected(Const hover, output: Boolean); Forward;
 Procedure GameEvent(Const event: KEY_EVENT_RECORD); Forward;
 Procedure GameEvent(Const event: MOUSE_EVENT_RECORD); Forward;
 
@@ -255,6 +303,8 @@ Procedure EnterGame(difficulty: Integer); Begin
 		End;
 	End;
 	boxOpened := 0;
+	disableRecord := False;
+	loadFromSave := False;
 	NoopAll();
 	onKey := @GameEvent;
 	onMouse := @GameEvent;
@@ -263,18 +313,38 @@ Procedure EnterGame(difficulty: Integer); Begin
 	TextBackground(Black);
 	TextColor(White);
 	ClrScr();
-	// TODO: Write instructions
+	GoToXY(Width * BoxWidth + 1, 0);
+	Write('Arrow keys / mouse to move');
+	GoToXY(Width * BoxWidth + 1, 1);
+	Write('Enter / left click to select');
+	GoToXY(Width * BoxWidth + 1, 2);
+	Write('F key / right click to');
+	GoToXY(Width * BoxWidth + 1, 3);
+	Write('toggle flag');
+	GoToXY(Width * BoxWidth + 1, 4);
+	Write('S key to save game and quit');
+	GoToXY(Width * BoxWidth + 1, 5);
+	Write('Q key to quit game without');
+	GoToXY(Width * BoxWidth + 1, 6);
+	Write('saving');
+	GoToXY(Width * BoxWidth + 1, 7);
+	Write('Mid-click or left click and');
+	GoToXY(Width * BoxWidth + 1, 8);
+	Write('right click together to do');
+	GoToXY(Width * BoxWidth + 1, 9);
+	Write('chording');
 	DrawBoard(gameBoard);
 	If (boxSelected.X >= Width) Or (boxSelected.Y >= Height) Then
 	Begin
 		boxSelected.X := 0;
 		boxSelected.Y := 0;
 	End;
-	DrawBoxSelected(True);
+	DrawBoxSelected(True, False);
+	PrintBoard();
 End;
 
 Procedure GameChangeSelection(Const X: Integer; Const Y: Integer); Forward;
-Procedure GameSelection(flagging: Boolean); Forward;
+Procedure GameSelection(flagging: Boolean; chording: Boolean); Forward;
 
 Procedure GameEvent(Const event: KEY_EVENT_RECORD);
 Begin
@@ -287,8 +357,13 @@ Begin
 	End
 	Else
 	Case event.wVirtualKeyCode Of
-		$46: GameSelection(True);
-		VK_RETURN: GameSelection(False);
+		$46: GameSelection(True, False);
+		$53: Begin
+			SaveGame();
+			Halt(0);
+		End;
+		$51: Halt(0);
+		VK_RETURN: GameSelection(False, False);
 	End;
 End;
 
@@ -307,51 +382,100 @@ Begin
 			End;
 	If (hoverX <> -1) And (hoverY <> -1) Then
 	Case event.dwEventFlags Of
-		0: If (event.dwButtonState And $01) <> $0 Then
-			GameSelection(False)
+		0: If (event.dwButtonState And $04) <> $0 Then
+			GameSelection(False, True)
+		Else If (event.dwButtonState And $03) = $03 Then
+			GameSelection(False, True)
+		Else If (event.dwButtonState And $01) = $01 Then
+			GameSelection(False, False)
 		Else If (event.dwButtonState And $02) <> $0 Then
-			GameSelection(True);
+			GameSelection(True, False);
 		MOUSE_MOVED:
 		If (boxSelected.X <> hoverX) Or (boxSelected.Y <> hoverY) Then
 			GameChangeSelection(hoverX, hoverY);
 	End;
 End;
 
-Procedure DrawBoxSelected(Const hover: Boolean);
+Procedure DrawBoxSelected(Const hover, output: Boolean);
 Begin
-	DrawBoxBackground(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y], hover);
+	DrawBoxBackground(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y], hover, output);
 End;
 
 Procedure GameChangeSelection(Const X: Integer; Const Y: Integer);
 Begin
 	If (boxSelected.X <> X) Or (boxSelected.Y <> Y) Then
 	Begin
-		DrawBoxSelected(False);
+		DrawBoxSelected(False, True);
 		boxSelected.X := X;
 		boxSelected.Y := Y;
-		DrawBoxSelected(True);
+		DrawBoxSelected(True, True);
 	End;
 End;
 
-Procedure GameSelection(flagging: Boolean);
+Procedure GameSelection(flagging: Boolean; chording: Boolean);
 Var
 st: Array Of Coord;
 efLen: SizeInt;
 c: Coord;
-i, j: Integer;
+i, j, cnt: Integer;
+success: Boolean;
 newEl: Coord;
 Begin
-	// TODO: Chording?
-	If flagging Then
+	If chording Then
+	Begin
+		If gameBoard[boxSelected.X][boxSelected.Y].opened Then
+		Begin
+			cnt := 0;
+			For i := -1 To 1 Do
+				For j := -1 To 1 Do
+					If Not ((i = 0) And (j = 0)) And ((boxSelected.X + i) In [0..Width-1]) And ((boxSelected.Y + j) In [0..Height-1]) And gameBoard[boxSelected.X + i][boxSelected.Y + j].flagged Then
+						Inc(cnt);
+			If cnt = gameBoard[boxSelected.X][boxSelected.Y].value Then
+			Begin
+				// start chording
+				newEl := boxSelected;
+				success := True;
+				For i := -1 To 1 Do
+					For j := -1 To 1 Do
+						If ((newEl.X + i) In [0..Width-1]) And ((newEl.Y + j) In [0..Height-1]) Then
+							If Not gameBoard[newEl.X + i][newEl.Y + j].flagged And (gameBoard[newEl.X + i][newEl.Y + j].value = -1) Then
+							Begin
+								success := False;
+							End
+							Else
+							Begin
+								boxSelected.X := newEl.X + i;
+								boxSelected.Y := newEl.Y + j;
+								GameSelection(False, False);
+								DrawBoxSelected(False, False);
+								If Bombs + boxOpened = Width * Height Then
+								Begin
+									boxSelected := newEl;
+									Exit();
+								End;
+							End;
+				boxSelected := newEl;
+				DrawBoxSelected(True, False);
+				If Not success Then
+				Begin
+					EnterGameEnd(False);
+				End;
+			End;
+		End;
+	End
+	Else If flagging And Not gameBoard[boxSelected.X][boxSelected.Y].opened Then
 	Begin
 		gameBoard[boxSelected.X][boxSelected.Y].flagged := Not gameBoard[boxSelected.X][boxSelected.Y].flagged;
 		DrawBoxContent(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y]);
-		DrawBoxSelected(True);
+		DrawBoxSelected(True, False);
 	End
 	Else If Not gameBoard[boxSelected.X][boxSelected.Y].flagged And Not gameBoard[boxSelected.X][boxSelected.Y].opened Then
 	Begin
 		If boxOpened = 0 Then
+		Begin
 			gameBoard := InitBoard(Width, Height, Bombs, boxSelected.X, boxSelected.Y);
+			startTime := Time();
+		End;
 		If gameBoard[boxSelected.X][boxSelected.Y].value = -1 Then
 			EnterGameEnd(False)
 		Else
@@ -384,17 +508,25 @@ Begin
 				End;
 			Until efLen = 0;
 			DrawBoard(gameBoard);
-			DrawBoxSelected(True);
+			DrawBoxSelected(True, True);
 		End;
 		If boxOpened + Bombs = Width * Height Then
 			EnterGameEnd(True);
 	End;
+	PrintBoard();
 End;
+
+Procedure GameEndEvent(Const event: KEY_EVENT_RECORD); Forward;
 
 Procedure EnterGameEnd(win: Boolean);
 Var i, j: Integer;
-input: Word;
+timeRecord: Real;
 Begin
+	timeRecord := (Time() - startTime) / oneSec;
+	If loadFromSave And FileExists('save') Then
+	Begin
+		DeleteFile('save');
+	End;
 	If Not win Then
 		For i := 0 To Width - 1 Do
 			For j := 0 To Height - 1 Do
@@ -402,8 +534,13 @@ Begin
 				If gameBoard[i][j].value = -1 Then
 					gameBoard[i][j].opened := True;
 				gameBoard[i][j].flagged := False;
-				DrawBoxContent(i, j, gameBoard[i][j]);
 			End;
+	TextBackground(Black);
+	TextColor(White);
+	ClrScr();
+	For i := 0 To Width - 1 Do
+		For j := 0 To Height - 1 Do
+			DrawBoxContent(i, j, gameBoard[i][j]);
 	DrawBoard(gameBoard);
 	TextBackground(Black);
 	TextColor(White);
@@ -412,19 +549,153 @@ Begin
 		Write('You win!')
 	Else
 		Write('You lose!');
+	If win Then
+	Begin
+		GoToXY(Width * BoxWidth + 1, 1);
+		If disableRecord Then
+			Write('Timing is disabled')
+		Else
+		Begin
+			Write('Time: ', timeRecord:5:2, 's');
+			GoToXY(Width * BoxWidth + 1, 2);
+			Case gameDiff Of
+				0: If (timeRecord < easyBest) Or (easyBest = 0) Then
+				Begin
+					easyBest := timeRecord;
+					Write('Best time for easy!');
+				End
+				Else
+					Write('Time record: ', easyBest:5:2, 's');
+				1: If (timeRecord < mediumBest) Or (mediumBest = 0) Then
+				Begin
+					mediumBest := timeRecord;
+					Write('Best time for medium!');
+				End
+				Else
+					Write('Time record: ', mediumBest:5:2, 's');
+				2: If (timeRecord < hardBest) Or (hardBest = 0) Then
+				Begin
+					hardBest := timeRecord;
+					Write('Best time for hard!');
+				End
+				Else
+					Write('Time record: ', hardBest:5:2, 's');
+			End;
+			SaveRecord();
+		End;
+	End;
 	GoToXY(Width * BoxWidth + 1, 3);
 	Write('Press ''R'' to retry.');
 	GoToXY(Width * BoxWidth + 1, 4);
 	Write('Press ''Enter'' to return');
 	GoToXY(Width * BoxWidth + 1, 5);
 	Write('to main menu.');
-	Repeat
-		input := ReadKey();
-	Until (input = $0D) Or (input = $52);
-	If input = $0D Then
+	NoopAll();
+	onKey := @GameEndEvent;
+End;
+
+Procedure GameEndEvent(Const event: KEY_EVENT_RECORD);
+Begin
+	If event.wVirtualKeyCode = $0D Then
 		EnterMainMenu()
-	Else
+	Else If event.wVirtualKeyCode = $52 Then
 		EnterGame(gameDiff);
+End;
+
+Procedure SaveGame();
+Var
+f: Text;
+i, j: Integer;
+Begin
+	Assign(f, 'save');
+	Rewrite(f);
+	Write(f, Chr(gameDiff));
+	Write(f, Chr(Width Div 256), Chr(Width Mod 256));
+	Write(f, Chr(Height Div 256), Chr(Height Mod 256));
+	Write(f, Chr(Bombs Div 256), Chr(Bombs Mod 256));
+	Write(f, Chr(boxOpened Div 256), Chr(boxOpened Mod 256));
+	For i := 0 To Width - 1 Do
+		For j := 0 To Height - 1 Do
+		Begin
+			If gameBoard[i][j].opened Then
+				Write(f, Chr(1))
+			Else If gameBoard[i][j].flagged Then
+				Write(f, Chr(2))
+			Else
+				Write(f, Chr(0));
+			If gameBoard[i][j].value = -1 Then
+				Write(f, Chr(10))
+			Else
+				Write(f, Chr(gameBoard[i][j].value));
+		End;
+	Close(f);
+End;
+
+Procedure LoadGame();
+Var
+f: Text;
+c1, c2: Char;
+i, j: Integer;
+Begin
+	Assign(f, 'save');
+	Reset(f);
+	Read(f, c1);
+	gameDiff := Ord(c1);
+	Read(f, c1, c2);
+	Width := Ord(c1) * 256 + Ord(c2);
+	Read(f, c1, c2);
+	Height := Ord(c1) * 256 + Ord(c2);
+	Read(f, c1, c2);
+	Bombs := Ord(c1) * 256 + Ord(c2);
+	EnterGame(gameDiff);
+	Read(f, c1, c2);
+	boxOpened := Ord(c1) * 256 + Ord(c2);
+	For i := 0 To Width - 1 Do
+		For j := 0 To Height - 1 Do
+		Begin
+			Read(f, c1);
+			gameBoard[i][j].opened := False;
+			gameBoard[i][j].flagged := False;
+			If Ord(c1) = 1 Then
+				gameBoard[i][j].opened := True
+			Else If Ord(c1) = 2 Then
+				gameBoard[i][j].flagged := True;
+			Read(f, c1);
+			If Ord(c1) = 10 Then
+				gameBoard[i][j].value := -1
+			Else
+				gameBoard[i][j].value := Ord(c1);
+			DrawBoxContent(i, j, gameBoard[i][j]);
+		End;
+	Close(f);
+	DrawBoard(gameBoard);
+	DrawBoxSelected(True, True);
+	disableRecord := True;
+	loadFromSave := True;
+End;
+
+Procedure SaveRecord();
+Var
+f: Text;
+Begin
+	Assign(f, 'records');
+	Rewrite(f);
+	WriteLn(f, easyBest);
+	WriteLn(f, mediumBest);
+	WriteLn(f, hardBest);
+	Close(f);
+End;
+
+Procedure LoadRecord();
+Var
+f: Text;
+Begin
+	Assign(f, 'records');
+	Reset(f);
+	ReadLn(f, easyBest);
+	ReadLn(f, mediumBest);
+	ReadLn(f, hardBest);
+	Close(f);
 End;
 
 Begin
@@ -437,7 +708,7 @@ Begin
 	{ Infinite Event Loop }
 	While True Do
 	Begin
-		PollConsoleInput(irInBuf, 128, cNumRead);
+		PollConsoleInput(irInBuf, 1, cNumRead);
 		For i := 0 To cNumRead - 1 Do
 		Case irInBuf[i].EventType Of
 			1: onKey(irInBuf[i].Event.KeyEvent);

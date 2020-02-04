@@ -114,6 +114,14 @@ INPUT_RECORD = Record
 	End;
 End;
 
+CHAR_INFO = Record
+	Case LongInt Of
+		0 : ( UnicodeChar : WChar;
+		Attributes : Word);
+		1 : ( AsciiChar : Char );
+End;
+PCHAR_INFO = ^CHAR_INFO;
+
 Procedure SetConsoleTitle(Const title: AnsiString);
 Procedure SetConsoleFont(Const FaceName: FACETYPE; Const x, y: Integer);
 Procedure SetConsoleSize(Const Width: Integer; Const Height: Integer);
@@ -137,6 +145,8 @@ Function GetActiveBuffer(): Handle;
 Procedure WriteDupAttr(Const X: Integer; Const Y: Integer; Const n: Integer);
 Procedure ReadEnter();
 Procedure ReadInt(Var i: Integer);
+Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const X, Y, Width, Height: Integer);
+Procedure DisableClose();
 // original internal function
 // public for this program
 Function StrDup(Const str: String; Const cnt: Integer): String;
@@ -185,6 +195,9 @@ SECURITY_ATTRIBUTES = Record
 	bInheritHandle : LongBool;
 End;
 PSECURITY_ATTRIBUTES = ^SECURITY_ATTRIBUTES;
+HMenu = Handle;
+HWnd = Handle;
+UInt = Cardinal;
 
 // $BF = ENABLE_WINDOW_INPUT Or ENABLE_MOUSE_INPUT Or ENABLE_EXTENDED_FLAGS Or ENABLE_ECHO_INPUT Or ENABLE_LINE_INPUT Or ENABLE_INSERT_MODE Or ENABLE_PROCESSED_INPUT
 Const defaultMode: DWord = $BF;
@@ -221,6 +234,7 @@ Function CreateConsoleScreenBuffer(dwDesiredAccess: DWord; dwShareMode: DWord; C
 Function SetConsoleActiveScreenBuffer(hConsoleOutput: Handle): LongBool; External 'kernel32';
 Function ReadConsoleA(hConsoleInput: Handle; lpBuffer: Pointer; nNumberOfCharsToRead: DWord; lpNumberOfCharsRead: LpDWord; pInputControl: Pointer): LongBool; External 'kernel32';
 Function WriteConsoleA(hConsoleOutput: Handle; Const lpBuffer: Pointer; nNumberOfCharsToWrite: DWord; lpNumberOfCharsWritten: LpDWord; lpReserved: Pointer): LongBool; External 'kernel32';
+Function WriteConsoleOutputA(hConsoleOutput: Handle; Const lpBuffer: PCHAR_INFO; dwBufferSize: Coord; dwBufferCoord: Coord; lpWriteRegion: PSMALL_RECT): LongBool; External 'kernel32';
 
 Function StrDup(Const str: String; Const cnt: Integer): String;
 Var
@@ -446,6 +460,34 @@ Begin
 		res := res + Ord(tmp[j]);
 	End;
 	i := res;
+End;
+
+Procedure OutputFastBuffer(Const fastBuffer: PCHAR_INFO; Const X, Y, Width, Height: Integer);
+Var
+bufSize: Coord;
+bufCoord: Coord;
+writeRegion: SMALL_RECT;
+CurrentInfo: CONSOLE_SCREEN_BUFFER_INFO;
+Begin
+	GetConsoleScreenBufferInfo(hStdout, @CurrentInfo);
+	bufSize.X := Width;
+	bufSize.Y := Height;
+	bufCoord.X := 0;
+	bufCoord.Y := 0;
+	writeRegion.Top := Y;
+	writeRegion.Left := X;
+	writeRegion.Right := X + Width - 1;
+	writeRegion.Bottom := Y + Height - 1;
+	WriteConsoleOutputA(hStdout, fastBuffer, bufSize, bufCoord, @writeRegion);
+End;
+
+Function DeleteMenu(hMenu: HMenu; uPosition: UInt; uFlags: UInt): LongBool; External 'user32';
+Function GetSystemMenu(hWnd: HWnd; bRevert: LongBool): HMenu; External 'user32';
+Function GetConsoleWindow(): HWnd; External 'kernel32';
+
+Procedure DisableClose();
+Begin
+	DeleteMenu(GetSystemMenu(GetConsoleWindow(), False), $F060, $0);
 End;
 
 Initialization

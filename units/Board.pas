@@ -14,11 +14,16 @@ TBoard = Array Of Array Of BoxState;
 Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer; nx, ny: Integer): TBoard;
 Procedure DrawBoard(Const gameBoard: TBoard);
 Function MouseInBox(mousePosX, mousePosY, x, y: Integer): Boolean;
-Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean);
+Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean; output: Boolean);
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
+Procedure PrintBoard();
 
 Implementation
-Uses Console;
+Uses Windows, Console;
+Var
+W, H: Integer;
+fastBuffer: Array Of CHAR_INFO;
+boxBuffer: Array Of CHAR_INFO;
 
 Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer; nx, ny: Integer): TBoard;
 Var
@@ -30,6 +35,11 @@ tmp, randLoc: Integer;
 bombs: Array Of Array[0..1] Of Integer;
 x, y: Integer;
 Begin
+	W := Width;
+	H := Height;
+	SetLength(fastBuffer, 0);
+	SetLength(fastBuffer, W * H * BoxWidth * BoxHeight);
+	SetLength(boxBuffer, BoxWidth * BoxHeight);
 	randomLen := Width * Height;
 	SetLength(randomizer, randomLen);
 	SetLength(bombs, numBombs);
@@ -71,42 +81,57 @@ Begin
 	InitBoard := gameBoard;
 End;
 
-Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean);
+Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean; output: Boolean);
 Var
-i: Integer;
+i, j: Integer;
+color: Word;
 Begin
-	TextColor(Black);
+	color := Red;
+	If state.opened Then
+		Case state.value Of
+			1: color := LightBlue;
+			2: color := Green;
+			3: color := LightRed;
+			4: color := LightPurple;
+			5: color := Red;
+			6: color := Blue;
+			7: color := Black;
+			8: color := Gray;
+		End;
 	If hover Then
 		If Not state.opened And Not state.flagged Then
-			TextBackground(Green)
+			color := Green * 16 + color
 		Else
-			TextBackground(Red)
+			color := Red * 16 + color
 	Else
 		If Not state.opened Then
-			TextBackground(Gray)
+			color := Gray * 16 + color
 		Else If state.value = -1 Then
-			TextBackground(LightRed)
+			color := LightRed * 16 + color
 		Else
-			TextBackground(White);
+			color := White * 16 + color;
 	For i := 0 To BoxHeight - 1 Do
-		WriteDupAttr(x * BoxWidth, y * BoxHeight + i, BoxWidth);
+		For j := 0 To BoxWidth - 1 Do
+		Begin
+			fastBuffer[x * BoxWidth + j + (y * BoxHeight + i) * W * BoxWidth].Attributes := color;
+			boxBuffer[j + i * BoxWidth] := fastBuffer[x * BoxWidth + j + (y * BoxHeight + i) * W * BoxWidth];
+		End;
+	If output Then
+		OutputFastBuffer(@boxBuffer[0], x * BoxWidth, y * BoxHeight, BoxWidth, BoxHeight);
 End;
 
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
 Begin
-	GoToXY(x * BoxWidth + BoxWidth div 2, y * BoxHeight + BoxHeight div 2);
-	// TODO: add different colors
+	fastBuffer[x * BoxWidth + BoxWidth div 2 + (y * BoxHeight + BoxHeight div 2) * W * BoxWidth].AsciiChar := ' ';
 	If state.flagged Then
-		Write('F')
+		fastBuffer[x * BoxWidth + BoxWidth div 2 + (y * BoxHeight + BoxHeight div 2) * W * BoxWidth].AsciiChar := 'F'
 	Else If state.opened Then
 	Begin
 		If state.value = -1 Then
-			Write('B')
+			fastBuffer[x * BoxWidth + BoxWidth div 2 + (y * BoxHeight + BoxHeight div 2) * W * BoxWidth].AsciiChar := 'B'
 		Else If state.value <> 0 Then
-			Write(state.value);
-	End
-	Else
-		Write(' ');
+			fastBuffer[x * BoxWidth + BoxWidth div 2 + (y * BoxHeight + BoxHeight div 2) * W * BoxWidth].AsciiChar := Chr(48 + state.value);
+	End;
 End;
 
 Procedure DrawBoard(Const gameBoard: TBoard);
@@ -118,7 +143,7 @@ Begin
 	Begin
 		column := gameBoard[i];
 		For j := Low(column) To High(column) Do
-			DrawBoxBackground(i, j, column[j], False);
+			DrawBoxBackground(i, j, column[j], False, False);
 	End;
 End;
 
@@ -128,6 +153,11 @@ Begin
 		(mousePosX <= (x + 1) * BoxWidth - 1) And
 		(mousePosY >= y * BoxHeight) And
 		(mousePosY <= (y + 1) * BoxHeight - 1);
+End;
+
+Procedure PrintBoard();
+Begin
+	OutputFastBuffer(@fastBuffer[0], 0, 0, W * BoxWidth, H * BoxHeight);
 End;
 
 End.
