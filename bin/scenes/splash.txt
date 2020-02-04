@@ -1,1 +1,32 @@
-minesweeper (temporary splash screen)
+
+
+
+
+
+
+        |\                  
+        | \        /|       
+        |  \____  / |       
+       /|__/AMMA\/  |       
+     /AMMMMMMMMMMM\_|       
+ ___/AMMMMMMMMMMMMMMA       
+ \   |MVKMMM/ .\MMMMM\      
+  \__/MMMMMM\  /MMMMMM---   
+  |MMMMMMMMMMMMMMMMMM|  /   
+  |MMMM/. \MM.--MMMMMM\/    
+  /\MMM\  /MM\  |MMMMMM\    
+ /  |MMMMMMMMM\ |MMMMMM|    
+/___/MMMMMMMMMM\|M.--M/     
+     \VMM/\MMMMMMM\  |      
+      \V/  \MMMMMMM\ |      
+        |  /MMMV'   \|      
+        | /                 
+        |/                  
+
+
+        .__                                                                 
+  _____ |__| ____   ____   ________  _  __ ____   ____ ______   ___________ 
+ /     \|  |/    \_/ __ \ /  ___/\ \/ \/ // __ \_/ __ \\____ \_/ __ \_  __ \
+|  Y Y  \  |   |  \  ___/ \___ \  \     /\  ___/\  ___/|  |_> >  ___/|  | \/
+|__|_|  /__|___|  /\___  >____  >  \/\_/  \___  >\___  >   __/ \___  >__|   
+      \/        \/     \/     \/              \/     \/|__|        \/       

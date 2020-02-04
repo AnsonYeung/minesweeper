@@ -14,7 +14,7 @@ Procedure EnterMenu(Var onKey: EKey; Var onMouse: EMouse; ponSelect: MenuCb; Var
 
 Implementation
 Const
-yOffset: Integer = 20;
+yOffset: Integer = 17;
 Var
 choices: Array Of String;
 choiceCnt: Integer;

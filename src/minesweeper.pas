@@ -1,6 +1,6 @@
 {$mode objfpc}
 Program TicTacToe;
-Uses StopRunning, SysUtils, Console, Board, Menu;
+Uses StopRunning, SysUtils, Classes, Math, Console, Board, Menu;
 Const
 oneSec: Real = 0.00001157407;
 
@@ -10,6 +10,14 @@ EMouse = Procedure (Const event: MOUSE_EVENT_RECORD);
 EWinBufferSize = Procedure (Const event: WINDOW_BUFFER_SIZE_RECORD);
 EFocus = Procedure (Const event: FOCUS_EVENT_RECORD);
 EMenu = Procedure (Const event: MENU_EVENT_RECORD);
+TTimerThread = Class(TThread)
+	Private
+		currentTime: Integer;
+	Protected
+		Procedure Execute; Override;
+	Public
+		Constructor Create(createSuspended: Boolean);
+End;
 
 Var
 irInBuf: Array[0..0] Of INPUT_RECORD;
@@ -32,6 +40,29 @@ gameBoard: TBoard;
 boxSelected: Coord;
 boxOpened: Integer;
 loadFromSave: Boolean;
+remainingFlags: Integer;
+TimerThread: TThread;
+
+Constructor TTimerThread.Create(createSuspended: Boolean);
+Begin
+	Inherited Create(createSuspended);
+	FreeOnTerminate := True;
+End;
+
+Procedure TTimerThread.Execute;
+Begin
+	currentTime := 0;
+	If Not disableRecord Then
+		While Not Terminated Do
+		Begin
+			GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 2);
+			Write('Time:           ');
+			GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 2);
+			Write('Time: ', currentTime, 's');
+			Inc(currentTime);
+			Sleep(Ceil(1000 * (startTime + oneSec * currentTime - Time()) / oneSec));
+		End;
+End;
 
 Procedure EnterConsole();
 Begin
@@ -104,8 +135,10 @@ Procedure ResetGame(); Forward;
 Procedure InitProgram();
 Begin
 	Randomize();
-	SetConsoleTitle('Minesweeper');	
+	SetConsoleTitle('Minesweeper');
+	{$IFNDEF FALLBACK}
 	DisableClose();
+	{$ENDIF}
 	If FileExists('.running') Then
 	Begin
 		EnterConsole();
@@ -305,6 +338,7 @@ Procedure EnterGame(difficulty: Integer); Begin
 	boxOpened := 0;
 	disableRecord := False;
 	loadFromSave := False;
+	remainingFlags := Bombs;
 	NoopAll();
 	onKey := @GameEvent;
 	onMouse := @GameEvent;
@@ -333,6 +367,10 @@ Procedure EnterGame(difficulty: Integer); Begin
 	Write('right click together to do');
 	GoToXY(Width * BoxWidth + 1, 9);
 	Write('chording');
+	GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 2);
+	Write('Time: 0s');
+	GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 1);
+	Write('Remaining Flags: ', remainingFlags);
 	DrawBoard(gameBoard);
 	If (boxSelected.X >= Width) Or (boxSelected.Y >= Height) Then
 	Begin
@@ -432,7 +470,6 @@ Begin
 						Inc(cnt);
 			If cnt = gameBoard[boxSelected.X][boxSelected.Y].value Then
 			Begin
-				// start chording
 				newEl := boxSelected;
 				success := True;
 				For i := -1 To 1 Do
@@ -465,6 +502,14 @@ Begin
 	End
 	Else If flagging And Not gameBoard[boxSelected.X][boxSelected.Y].opened Then
 	Begin
+		If gameBoard[boxSelected.X][boxSelected.Y].flagged Then
+			Inc(remainingFlags)
+		Else
+			Dec(remainingFlags);
+		GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 1);
+		Write('Remaining Flags:           ');
+		GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 1);
+		Write('Remaining Flags: ', remainingFlags);
 		gameBoard[boxSelected.X][boxSelected.Y].flagged := Not gameBoard[boxSelected.X][boxSelected.Y].flagged;
 		DrawBoxContent(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y]);
 		DrawBoxSelected(True, False);
@@ -475,6 +520,7 @@ Begin
 		Begin
 			gameBoard := InitBoard(Width, Height, Bombs, boxSelected.X, boxSelected.Y);
 			startTime := Time();
+			TimerThread := TTimerThread.Create(False);
 		End;
 		If gameBoard[boxSelected.X][boxSelected.Y].value = -1 Then
 			EnterGameEnd(False)
@@ -523,6 +569,7 @@ Var i, j: Integer;
 timeRecord: Real;
 Begin
 	timeRecord := (Time() - startTime) / oneSec;
+	TimerThread.Terminate();
 	If loadFromSave And FileExists('save') Then
 	Begin
 		DeleteFile('save');
@@ -596,10 +643,11 @@ End;
 
 Procedure GameEndEvent(Const event: KEY_EVENT_RECORD);
 Begin
-	If event.wVirtualKeyCode = $0D Then
-		EnterMainMenu()
-	Else If event.wVirtualKeyCode = $52 Then
-		EnterGame(gameDiff);
+	If Not event.bKeyDown Then
+		If event.wVirtualKeyCode = $0D Then
+			EnterMainMenu()
+		Else If event.wVirtualKeyCode = $52 Then
+			EnterGame(gameDiff);
 End;
 
 Procedure SaveGame();

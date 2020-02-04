@@ -16,7 +16,7 @@
 	},
 	"settings": {
 		"code-runner.executorMap": {
-			"pascal": "$driveLetter && cd $workspaceRoot && ( if exist tmp rmdir /s /q tmp ) && mkdir tmp && cd src && fpc -dDEBUG -dFALLBACK -FU..\\tmp -Fu..\\units minesweeper.pas && move /y minesweeper.exe \"$workspaceRoot\\bin\" && cd $workspaceRoot\\bin && rmdir /s /q ..\\tmp && rm -f .running && start minesweeper",
+			"pascal": "$driveLetter && cd $workspaceRoot && ( if exist tmp rmdir /s /q tmp ) && mkdir tmp && cd src && fpc -dDEBUG -FU..\\tmp -Fu..\\units minesweeper.pas && move /y minesweeper.exe \"$workspaceRoot\\bin\" && cd $workspaceRoot\\bin && rmdir /s /q ..\\tmp && rm -f .running && start minesweeper",
 		},
 		"code-runner.ignoreSelection": true,
 		"code-runner.saveAllFilesBeforeRun": true,
