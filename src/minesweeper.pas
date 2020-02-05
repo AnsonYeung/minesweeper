@@ -312,7 +312,7 @@ Procedure EnterCustom(); Begin
 	End;
 End;
 
-Procedure DrawBoxSelected(Const hover, output: Boolean); Forward;
+Procedure DrawBoxSelected(Const hover: Boolean); Forward;
 Procedure GameEvent(Const event: KEY_EVENT_RECORD); Forward;
 Procedure GameEvent(Const event: MOUSE_EVENT_RECORD); Forward;
 
@@ -367,6 +367,8 @@ Procedure EnterGame(difficulty: Integer); Begin
 	Write('right click together to do');
 	GoToXY(Width * BoxWidth + 1, 9);
 	Write('chording');
+	GoToXY(Width * BoxWidth + 1, 10);
+	Write('R key to restart');
 	GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 2);
 	Write('Time: 0s');
 	GoToXY(Width * BoxWidth + 1, Height * BoxHeight - 1);
@@ -377,7 +379,7 @@ Procedure EnterGame(difficulty: Integer); Begin
 		boxSelected.X := 0;
 		boxSelected.Y := 0;
 	End;
-	DrawBoxSelected(True, False);
+	DrawBoxSelected(True);
 	PrintBoard();
 End;
 
@@ -401,6 +403,10 @@ Begin
 			Halt(0);
 		End;
 		$51: Halt(0);
+		$52: Begin
+			TimerThread.Terminate();
+			EnterGame(gameDiff);
+		End;
 		VK_RETURN: GameSelection(False, False, True);
 	End;
 End;
@@ -434,9 +440,9 @@ Begin
 	End;
 End;
 
-Procedure DrawBoxSelected(Const hover, output: Boolean);
+Procedure DrawBoxSelected(Const hover: Boolean);
 Begin
-	DrawBoxBackground(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y], hover, output);
+	DrawBoxBackground(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y], hover);
 End;
 
 Procedure GameChangeSelection(Const X: Integer; Const Y: Integer);
@@ -446,10 +452,10 @@ Begin
 	Begin
 		tx := boxSelected.X;
 		ty := boxSelected.Y;
-		DrawBoxSelected(False, False);
+		DrawBoxSelected(False);
 		boxSelected.X := X;
 		boxSelected.Y := Y;
-		DrawBoxSelected(True, False);
+		DrawBoxSelected(True);
 		PrintPartialBoard(Min(tx, X), Min(ty, Y), Abs(tx - X) + 1, Abs(ty - Y) + 1);
 	End;
 End;
@@ -460,6 +466,7 @@ st: Array Of Coord;
 efLen: SizeInt;
 c: Coord;
 i, j, cnt: Integer;
+t, l, r, b: Integer;
 success: Boolean;
 newEl: Coord;
 Begin
@@ -488,7 +495,7 @@ Begin
 								boxSelected.X := newEl.X + i;
 								boxSelected.Y := newEl.Y + j;
 								GameSelection(False, False, False);
-								DrawBoxSelected(False, False);
+								DrawBoxSelected(False);
 								If Bombs + boxOpened = Width * Height Then
 								Begin
 									boxSelected := newEl;
@@ -496,11 +503,13 @@ Begin
 								End;
 							End;
 				boxSelected := newEl;
-				DrawBoxSelected(True, False);
+				DrawBoxSelected(True);
 				If Not success Then
 				Begin
 					EnterGameEnd(False);
 				End;
+				If print Then
+					PrintBoard();
 			End;
 		End;
 	End
@@ -516,7 +525,9 @@ Begin
 		Write('Remaining Flags: ', remainingFlags);
 		gameBoard[boxSelected.X][boxSelected.Y].flagged := Not gameBoard[boxSelected.X][boxSelected.Y].flagged;
 		DrawBoxContent(boxSelected.X, boxSelected.Y, gameBoard[boxSelected.X][boxSelected.Y]);
-		DrawBoxSelected(True, False);
+		DrawBoxSelected(True);
+		If print Then
+			PrintPartialBoard(boxSelected.X, boxSelected.Y, 1, 1);
 	End
 	Else If Not gameBoard[boxSelected.X][boxSelected.Y].flagged And Not gameBoard[boxSelected.X][boxSelected.Y].opened Then
 	Begin
@@ -533,11 +544,23 @@ Begin
 			SetLength(st, 1);
 			st[0] := boxSelected;
 			efLen := 1;
+			l := boxSelected.X;
+			r := boxSelected.X;
+			t := boxSelected.Y;
+			b := boxSelected.Y;
 			Repeat
 				c := st[efLen - 1];
 				Dec(efLen);
 				If Not gameBoard[c.X][c.Y].opened And Not gameBoard[c.X][c.Y].flagged Then
 				Begin
+					If c.X > r Then
+						r := c.X
+					Else If c.X < l Then
+						l := c.X;
+					If c.Y > b Then
+						b := c.Y
+					Else If c.Y < t Then
+						t := c.Y;
 					gameBoard[c.X][c.Y].opened := True;
 					DrawBoxContent(c.X, c.Y, gameBoard[c.X][c.Y]);
 					Inc(boxOpened);
@@ -558,13 +581,13 @@ Begin
 				End;
 			Until efLen = 0;
 			DrawBoard(gameBoard);
-			DrawBoxSelected(True, True);
+			DrawBoxSelected(True);
+			If print Then
+				PrintPartialBoard(l, t, r - l + 1, b - t + 1);
 		End;
 		If boxOpened + Bombs = Width * Height Then
 			EnterGameEnd(True);
 	End;
-	If print Then
-		PrintBoard();
 End;
 
 Procedure GameEndEvent(Const event: KEY_EVENT_RECORD); Forward;
@@ -594,6 +617,7 @@ Begin
 		For j := 0 To Height - 1 Do
 			DrawBoxContent(i, j, gameBoard[i][j]);
 	DrawBoard(gameBoard);
+	PrintBoard();
 	TextBackground(Black);
 	TextColor(White);
 	GoToXY(Width * BoxWidth + 1, 0);
@@ -642,6 +666,8 @@ Begin
 	Write('Press ''Enter'' to return');
 	GoToXY(Width * BoxWidth + 1, 5);
 	Write('to main menu.');
+	GoToXY(Width * BoxWidth + 1, 6);
+	Write('Press ''Q'' to quit program.');
 	NoopAll();
 	onKey := @GameEndEvent;
 End;
@@ -652,7 +678,9 @@ Begin
 		If event.wVirtualKeyCode = $0D Then
 			EnterMainMenu()
 		Else If event.wVirtualKeyCode = $52 Then
-			EnterGame(gameDiff);
+			EnterGame(gameDiff)
+		Else If event.wVirtualKeyCode = $51 Then
+			Halt(0);
 End;
 
 Procedure SaveGame();
@@ -722,7 +750,8 @@ Begin
 		End;
 	Close(f);
 	DrawBoard(gameBoard);
-	DrawBoxSelected(True, True);
+	DrawBoxSelected(True);
+	PrintBoard();
 	disableRecord := True;
 	loadFromSave := True;
 End;

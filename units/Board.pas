@@ -14,7 +14,7 @@ TBoard = Array Of Array Of BoxState;
 Function InitBoard(Width: Integer; Height: Integer; numBombs: Integer; nx, ny: Integer): TBoard;
 Procedure DrawBoard(Const gameBoard: TBoard);
 Function MouseInBox(mousePosX, mousePosY, x, y: Integer): Boolean;
-Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean; output: Boolean);
+Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean);
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
 Procedure PrintPartialBoard(x, y, width, height: Integer);
 Procedure PrintBoard();
@@ -82,7 +82,7 @@ Begin
 	InitBoard := gameBoard;
 End;
 
-Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean; output: Boolean);
+Procedure DrawBoxBackground(x, y: Integer; state: BoxState; hover: Boolean);
 Var
 i, j: Integer;
 color: Word;
@@ -117,8 +117,6 @@ Begin
 			fastBuffer[x * BoxWidth + j + (y * BoxHeight + i) * W * BoxWidth].Attributes := color;
 			boxBuffer[j + i * BoxWidth] := fastBuffer[x * BoxWidth + j + (y * BoxHeight + i) * W * BoxWidth];
 		End;
-	If output Then
-		OutputFastBuffer(@boxBuffer[0], BoxWidth, BoxHeight, x * BoxWidth, y * BoxHeight, BoxWidth, BoxHeight);
 End;
 
 Procedure DrawBoxContent(x, y: Integer; state: BoxState);
@@ -144,7 +142,7 @@ Begin
 	Begin
 		column := gameBoard[i];
 		For j := Low(column) To High(column) Do
-			DrawBoxBackground(i, j, column[j], False, False);
+			DrawBoxBackground(i, j, column[j], False);
 	End;
 End;
 

@@ -21,6 +21,7 @@ F key / right click to toggle flag
 S key to save game and quit  
 Q key to quit game without saving  
 Mid-click or left click and right click together to do chording  
+R key to restart
 
 ## Compiling
 The program can be compiled using fpc 3.0.4  
