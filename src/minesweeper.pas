@@ -66,6 +66,9 @@ End;
 
 Procedure EnterConsole();
 Begin
+	
+	If (TimerThread <> Nil) And Not TimerThread.Finished Then
+		TimerThread.Terminate();
 	SetConsoleFont('Lucida Console', 8, 16);
 	SetConsoleSize(WinWidth, 45);
 	TextBackground(Black);
