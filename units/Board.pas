@@ -41,9 +41,8 @@ Begin
 	SetLength(fastBuffer, 0);
 	SetLength(fastBuffer, W * H * BoxWidth * BoxHeight);
 	SetLength(boxBuffer, BoxWidth * BoxHeight);
-	For i := 0 To Width - 1 Do
-		For j := 0 To Height - 1 Do
-			fastBuffer[i * BoxWidth + BoxWidth div 2 + (j * BoxHeight + BoxHeight div 2) * W * BoxWidth].AsciiChar := ' ';
+	For i := 0 To W * H * BoxWidth * BoxHeight - 1 Do
+		fastBuffer[i].AsciiChar := ' ';
 	randomLen := Width * Height;
 	SetLength(randomizer, randomLen);
 	SetLength(bombs, numBombs);
